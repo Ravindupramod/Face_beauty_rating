@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # Beauty Prediction API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: beauty-prediction-api:latest
+    container_name: beauty-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - MODEL_PATH=/app/models/best_model.pth
+      - LOG_LEVEL=info
+    volumes:
+      - ./models:/app/models:ro
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - beauty-network
+
+  # Nginx Reverse Proxy (optional)
+  nginx:
+    image: nginx:alpine
+    container_name: beauty-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./static:/usr/share/nginx/html/static:ro
+    depends_on:
+      - api
+    networks:
+      - beauty-network
+
+networks:
+  beauty-network:
+    driver: bridge
+
+volumes:
+  models:
+  logs:
